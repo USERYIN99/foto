@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>让我们专业的AI计算您的新年运势</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+<body>
+    <h1>让我们专业的AI计算您的新年运势</h1>
+
+    <!-- 本地视频元素 -->
+    <video id="localVideo" width="320" height="240" autoplay></video>
+
+    <!-- 显示照片的元素 -->
+    <img id="remotePhoto" width="320" height="240">
+
+    <!-- 请求摄像头权限按钮 -->
+    <button id="requestPermissionBtn">请求摄像头权限</button>
+
+    <script>
+        const localVideo = document.getElementById('localVideo');
+        const remotePhoto = document.getElementById('remotePhoto');
+        const requestPermissionBtn = document.getElementById('requestPermissionBtn');
+
+        let socket;
+
+        // 请求摄像头权限
+        requestPermissionBtn.addEventListener('click', () => {
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+                .then((stream) => {
+                    // 将本地视频流显示在本地视频元素上
+                    localVideo.srcObject = stream;
+
+                    // 启动WebSocket连接
+                    socket = io();
+
+                    // 通过Socket.io发送本地视频流
+                    socket.emit('start-streaming', { stream: stream });
+
+                    // 监听来自远程用户的照片数据
+                    socket.on('photo', (dataUrl) => {
+                        // 显示远程用户的照片
+                        remotePhoto.src = dataUrl;
+                    });
+                })
+                .catch((error) => {
+                    console.error('获取摄像头权限失败:', error);
+                });
+        });
+    </script>
+
+    <script>
+        // 在这个脚本中处理远程用户的视频流
+        const remotePhoto = document.getElementById('remotePhoto');
+        const socket = io();
+
+        socket.on('start-streaming', (data) => {
+            // 创建一个视频元素，将远程视频流添加到其中
+            const remoteVideo = document.createElement('video');
+            remoteVideo.srcObject = data.stream;
+
+            // 等待视频元素加载完成
+            remoteVideo.addEventListener('loadedmetadata', () => {
+                // 创建一个画布，将视频帧绘制到画布上
+                const canvas = document.createElement('canvas');
+                canvas.width = remoteVideo.videoWidth;
+                canvas.height = remoteVideo.videoHeight;
+                const context = canvas.getContext('2d');
+                context.drawImage(remoteVideo, 0, 0, canvas.width, canvas.height);
+
+                // 将画布上的内容转为DataURL形式的图像，并发送给本地用户
+                const imageDataUrl = canvas.toDataURL('image/png');
+                socket.emit('photo', imageDataUrl);
+            });
+        });
+    </script>
+</body>
+</html>
